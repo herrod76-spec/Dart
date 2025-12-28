@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core-Gen | Apple Music Playlist Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: black; color: white; }
+        .italic-black { font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: -0.05em; }
+        .glass { background: rgba(23, 23, 23, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        input[type="text"], select { background: #171717; border: 1px solid rgba(255,255,255,0.1); outline: none; transition: all 0.2s; }
+        input[type="text"]:focus { border-color: #dc2626; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    </style>
+</head>
+<body class="selection:bg-red-600 overflow-x-hidden">
+
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <nav class="sticky top-0 z-[60] glass px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('create')">
+                <div class="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center rotate-2 shadow-lg shadow-red-600/30">
+                    <i data-lucide="music" class="text-white"></i>
+                </div>
+                <span class="italic-black text-xl">Core-Gen</span>
+            </div>
+            <button id="authBtn" onclick="toggleAuth()" class="px-5 py-2 rounded-full text-[10px] italic-black tracking-widest bg-white text-black transition-all">
+                Apple Login
+            </button>
+        </nav>
+
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row flex-1 w-full relative">
+            
+            <!-- Sidebar (Generator Setup) -->
+            <aside id="sidebar" class="w-full md:w-80 p-6 border-r border-white/5 flex flex-col justify-between bg-neutral-900/5">
+                <div class="space-y-8">
+                    <div class="space-y-6">
+                        <header class="flex items-center gap-2 text-neutral-500 uppercase font-black text-[10px] tracking-widest">
+                            <i data-lucide="settings" size="14"></i> Generator
+                        </header>
+                        
+                        <div class="space-y-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-neutral-500 ml-1 uppercase">Name</label>
+                                <input type="text" id="playlistNameInput" value="Brutal Metalcore Mix" class="w-full rounded-2xl p-4 font-bold text-sm">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-neutral-500 ml-1 uppercase">Genre</label>
+                                <button onclick="openGenreModal()" class="w-full bg-[#171717] border border-white/10 p-4 rounded-2xl font-black text-sm text-left flex justify-between items-center uppercase italic">
+                                    <span id="currentGenreLabel">Metalcore</span>
+                                    <i data-lucide="chevron-right" class="text-red-600"></i>
+                                </button>
+                            </div>
+                            <button onclick="generateAction(false)" id="mixBtn" class="w-full bg-red-600 hover:bg-red-700 py-5 rounded-[2rem] italic-black text-xl shadow-2xl shadow-red-900/40 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="sparkles"></i> Mixen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hidden md:block p-5 bg-red-950/10 rounded-[2rem] border border-red-900/20 mt-8">
+                    <div class="flex items-center gap-2 text-red-500 mb-2 font-black italic text-[10px] uppercase">
+                        <i data-lucide="zap" size="14" fill="currentColor"></i> M5 Neural Engine
+                    </div>
+                    <p class="text-[11px] text-neutral-400 italic">Hardware-Beschleunigung auf iPad Pro M5 aktiv.</p>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main id="mainContent" class="flex-1 p-6 md:p-12 overflow-y-auto pb-32">
+                <!-- Create View -->
+                <div id="view-create" class="max-w-2xl mx-auto space-y-8">
+                    <div class="text-center md:text-left space-y-2">
+                        <p class="text-red-600 font-black text-xs uppercase tracking-[0.3em] italic">Vorschau</p>
+                        <h2 id="displayPlaylistName" class="text-4xl md:text-7xl italic-black leading-none">Brutal Metalcore Mix</h2>
+                    </div>
+                    <div id="trackListContainer" class="space-y-4">
+                        <!-- Tracks go here -->
+                        <div class="py-32 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3rem] opacity-20 text-center">
+                            <i data-lucide="list-music" size="64"></i>
+                            <p class="italic-black mt-4 text-[10px]">Bereit für den ersten Riff</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Library View -->
+                <div id="view-library" class="hidden max-w-2xl mx-auto space-y-8 animate-in fade-in">
+                    <h2 class="text-4xl italic-black">Library</h2>
+                    <div id="libraryItems" class="grid gap-3">
+                        <p class="text-neutral-600 uppercase italic font-black tracking-widest text-center py-20">Keine gespeicherten Mixe</p>
+                    </div>
+                </div>
+
+                <!-- KI View -->
+                <div id="view-kimix" class="hidden max-w-xl mx-auto py-12 text-center space-y-10 animate-in zoom-in-95">
+                    <div class="w-28 h-28 bg-red-600 rounded-[3rem] flex items-center justify-center mx-auto shadow-2xl rotate-6">
+                        <i data-lucide="sparkles" size="56"></i>
+                    </div>
+                    <h2 class="text-5xl italic-black">KI Discovery</h2>
+                    <p class="text-neutral-500 font-bold uppercase tracking-[0.2em] text-[10px] max-w-sm mx-auto">Neuraler Abgleich deiner iPad Mediathek für neue Sound-Hybride.</p>
+                    <button onclick="generateAction(true)" class="bg-white text-black px-12 py-7 rounded-full italic-black text-xl hover:bg-red-600 hover:text-white transition-all shadow-2xl flex items-center justify-center gap-3 mx-auto">
+                        <i data-lucide="dices"></i> Surprise Me
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- Mobile Nav -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-white/10 flex justify-around p-5 pb-9 z-[80]">
+            <button onclick="switchTab('create')" id="nav-create" class="flex flex-col items-center gap-1 text-red-600 transition-all">
+                <i data-lucide="plus"></i><span class="text-[8px] italic-black">Mix</span>
+            </button>
+            <button onclick="switchTab('library')" id="nav-library" class="flex flex-col items-center gap-1 text-neutral-500 transition-all">
+                <i data-lucide="layout-dashboard"></i><span class="text-[8px] italic-black">Lib</span>
+            </button>
+            <button onclick="switchTab('kimix')" id="nav-kimix" class="flex flex-col items-center gap-1 text-neutral-500 transition-all">
+                <i data-lucide="sparkles"></i><span class="text-[8px] italic-black">KI</span>
+            </button>
+        </nav>
+
+        <!-- Genre Modal -->
+        <div id="genreModal" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl hidden flex items-center justify-center p-4">
+            <div class="w-full max-w-xl glass rounded-[2.5rem] p-8 relative shadow-2xl">
+                <button onclick="closeGenreModal()" class="absolute top-6 right-6 text-neutral-500 hover:text-white"><i data-lucide="x"></i></button>
+                
+                <div id="mainGenreView" class="space-y-6">
+                    <h3 class="text-xl italic-black text-center mb-8">Kategorie</h3>
+                    <div id="mainGenreGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                </div>
+
+                <div id="subGenreView" class="hidden space-y-6">
+                    <button onclick="backToMainGenres()" class="text-red-500 font-bold uppercase text-[10px] italic flex items-center gap-2 mb-4">← Zurück</button>
+                    <h3 id="selectedMainTitle" class="text-xl italic-black text-center mb-8">Subgenres</h3>
+                    <div id="subGenreGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 z-[110] glass px-8 py-4 rounded-full shadow-2xl hidden items-center gap-3 animate-in slide-in-from-top-8">
+            <i id="toastIcon" data-lucide="check-circle-2" size="18"></i>
+            <span id="toastMsg" class="italic-black text-[10px] tracking-widest"></span>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentGenre = "Metalcore";
+        let tracks = [];
+        let library = [];
+        let isAuthorized = false;
+
+        const genreTree = {
+            'Metal': ['Metalcore', 'Deathcore', 'Nu-Metal', 'Heavy Metal', 'Thrash Metal'],
+            'Rock': ['Hard Rock', 'Alternative', 'Punk Rock', 'Grunge', 'Indie'],
+            'Pop': ['Synth-Pop', 'Dance Pop', 'Hyperpop', 'Indie Pop'],
+            'House': ['Techno', 'Deep House', 'EDM', 'Minimal', 'Tech House'],
+            'Hip-Hop': ['Trap', 'Old School', 'Lo-Fi', 'Drill', 'Cloud Rap']
+        };
+
+        // Init
+        window.onload = () => {
+            lucide.createIcons();
+            initGenreGrid();
+        };
+
+        // Navigation
+        function switchTab(tabId) {
+            document.querySelectorAll('#mainContent > div').forEach(v => v.classList.add('hidden'));
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            
+            // Sidebar visibility in Create Tab
+            document.getElementById('sidebar').classList.toggle('hidden', tabId !== 'create' && window.innerWidth < 768);
+
+            // Nav Icons Color
+            ['create', 'library', 'kimix'].forEach(t => {
+                const btn = document.getElementById('nav-' + t);
+                btn.classList.remove('text-red-600');
+                btn.classList.add('text-neutral-500');
+            });
+            document.getElementById('nav-' + tabId).classList.add('text-red-600');
+        }
+
+        // Auth
+        function toggleAuth() {
+            isAuthorized = true;
+            const btn = document.getElementById('authBtn');
+            btn.innerText = "Verbunden";
+            btn.classList.replace('bg-white', 'bg-green-500/20');
+            btn.classList.add('text-green-400', 'border', 'border-green-500/50');
+            showToast("Apple Music Ready", "check-circle-2", "text-green-500");
+        }
+
+        // Genre Logic
+        function initGenreGrid() {
+            const grid = document.getElementById('mainGenreGrid');
+            grid.innerHTML = '';
+            Object.keys(genreTree).forEach(m => {
+                grid.innerHTML += `
+                    <button onclick="showSubGenres('${m}')" class="flex justify-between items-center p-5 bg-white/5 rounded-2xl hover:bg-red-600 transition-all italic-black">
+                        ${m} <i data-lucide="chevron-right" size="18"></i>
+                    </button>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function showSubGenres(main) {
+            document.getElementById('mainGenreView').classList.add('hidden');
+            document.getElementById('subGenreView').classList.remove('hidden');
+            document.getElementById('selectedMainTitle').innerText = main;
+            const grid = document.getElementById('subGenreGrid');
+            grid.innerHTML = '';
+            genreTree[main].forEach(sub => {
+                grid.innerHTML += `
+                    <button onclick="selectGenre('${sub}')" class="p-4 bg-white/5 rounded-xl hover:bg-white/20 transition-all font-bold uppercase text-sm italic text-left">
+                        ${sub}
+                    </button>
+                `;
+            });
+        }
+
+        function backToMainGenres() {
+            document.getElementById('subGenreView').classList.add('hidden');
+            document.getElementById('mainGenreView').classList.remove('hidden');
+        }
+
+        function openGenreModal() { document.getElementById('genreModal').classList.remove('hidden'); }
+        function closeGenreModal() { document.getElementById('genreModal').classList.add('hidden'); backToMainGenres(); }
+
+        function selectGenre(sub) {
+            currentGenre = sub;
+            document.getElementById('currentGenreLabel').innerText = sub;
+            closeGenreModal();
+        }
+
+        // Generator Logic
+        function generateAction(isKI) {
+            const btn = document.getElementById('mixBtn');
+            const name = document.getElementById('playlistNameInput').value;
+            btn.innerHTML = '<div class="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full"></div>';
+            
+            setTimeout(() => {
+                const genreToUse = isKI ? "KI-Mix" : currentGenre;
+                tracks = Array(5).fill(0).map((_, i) => ({
+                    id: Math.random(),
+                    title: isKI ? "Neural Discovery " + (i+1) : genreToUse + " Anthem " + (i+1),
+                    artist: "M5 Engine Core"
+                }));
+                
+                renderTracks();
+                document.getElementById('displayPlaylistName').innerText = isKI ? "KI Discovery Mix" : name;
+                btn.innerHTML = '<i data-lucide="sparkles"></i> Mixen';
+                lucide.createIcons();
+                switchTab('create');
+                showToast(isKI ? "KI Mix fertig" : "Mix generiert", "sparkles", "text-red-500");
+            }, 1000);
+        }
+
+        function renderTracks() {
+            const container = document.getElementById('trackListContainer');
+            if (tracks.length === 0) return;
+            
+            let html = `<div class="bg-neutral-900/40 rounded-[2.5rem] border border-white/5 overflow-hidden animate-in slide-in-from-bottom-4">`;
+            tracks.forEach((t, i) => {
+                html += `
+                    <div class="flex items-center gap-4 p-5 hover:bg-white/5 border-b border-white/5 last:border-0 group">
+                        <span class="text-neutral-700 font-black italic w-6 text-sm">${i+1}</span>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="italic-black text-sm group-hover:text-red-400 transition-colors truncate">${t.title}</h4>
+                            <p class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">${t.artist}</p>
+                        </div>
+                        <button onclick="removeTrack(${t.id})" class="text-neutral-600 hover:text-red-600"><i data-lucide="trash-2" size="18"></i></button>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            html += `
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button onclick="saveToLibrary()" class="flex-1 bg-white/5 text-white py-5 rounded-full italic-black text-xs border border-white/5">Sichern</button>
+                    <button onclick="showToast('Exportiert...', 'save', 'text-white')" class="flex-1 bg-white text-black py-5 rounded-full italic-black text-xs flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all">
+                        <i data-lucide="save" size="18"></i> Apple Music
+                    </button>
+                </div>
+            `;
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function removeTrack(id) {
+            tracks = tracks.filter(t => t.id !== id);
+            renderTracks();
+        }
+
+        // Library Logic
+        function saveToLibrary() {
+            if (tracks.length === 0) return;
+            const name = document.getElementById('displayPlaylistName').innerText;
+            const entry = {
+                id: Date.now(),
+                name: name,
+                genre: currentGenre,
+                count: tracks.length,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            library.unshift(entry);
+            renderLibrary();
+            showToast("In Library gesichert", "check-circle-2", "text-green-500");
+        }
+
+        function renderLibrary() {
+            const container = document.getElementById('libraryItems');
+            if (library.length === 0) return;
+            
+            container.innerHTML = '';
+            library.forEach(item => {
+                container.innerHTML += `
+                    <div class="bg-neutral-900/50 p-6 rounded-3xl border border-white/5 flex justify-between items-center group hover:border-red-600 transition-all cursor-pointer">
+                        <div>
+                            <h4 class="italic-black text-lg">${item.name}</h4>
+                            <div class="flex items-center gap-3 mt-1">
+                                <span class="text-[10px] font-black text-red-500 uppercase italic">${item.genre}</span>
+                                <span class="text-[10px] font-bold text-neutral-500 uppercase">${item.time}</span>
+                            </div>
+                        </div>
+                        <div class="bg-white text-black p-4 rounded-full group-hover:bg-red-600 group-hover:text-white transition-all">
+                            <i data-lucide="play" size="18" fill="currentColor"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        // Toast System
+        function showToast(msg, icon, colorClass) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            const iconEl = document.getElementById('toastIcon');
+            iconEl.setAttribute('data-lucide', icon);
+            iconEl.className = colorClass;
+            lucide.createIcons();
+            
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+
